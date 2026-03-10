@@ -21,18 +21,38 @@ public class RPGHealthManager {
     private final Map<UUID, PlayerData> playerData = new HashMap<>();
     private final File dataFolder;
 
-    private static final double BASE_HP = 100.0;
-    private static final double HP_PER_LEVEL = 2.0;
+    // Vanilla max HP stays at 20 always — we just display it as 100
+    private static final double VANILLA_BASE_HP = 20.0;
+    private static final double DISPLAY_BASE_HP = 100.0;
+    private static final double DISPLAY_HP_PER_LEVEL = 2.0;
     private static final int BASE_XP = 100;
     private static final double XP_SCALE = 1.15;
-    private static final double REGEN_AMOUNT = 0.5;
+    private static final double REGEN_AMOUNT = 0.1; // in vanilla HP (0.1 = 0.5 display HP)
     private static final long REGEN_INTERVAL = 60L;
 
     public static class PlayerData {
         public int level = 1;
-        public double maxHp = BASE_HP;
-        public double currentHp = BASE_HP;
         public int xp = 0;
+
+        // Display values only — actual HP stays vanilla scaled
+        public double displayMaxHp() {
+            return DISPLAY_BASE_HP + (level - 1) * DISPLAY_HP_PER_LEVEL;
+        }
+
+        // Convert vanilla HP to display HP
+        public double toDisplay(double vanillaHp) {
+            return (vanillaHp / VANILLA_BASE_HP) * displayMaxHp();
+        }
+
+        // Convert display HP to vanilla HP
+        public double toVanilla(double displayHp) {
+            return (displayHp / displayMaxHp()) * VANILLA_BASE_HP;
+        }
+
+        // Max vanilla HP scales slightly with level — +0.4 vanilla per level
+        public double vanillaMaxHp() {
+            return VANILLA_BASE_HP + (level - 1) * 0.4;
+        }
     }
 
     public RPGHealthManager(RPGHealthPlugin plugin) {
@@ -48,10 +68,11 @@ public class RPGHealthManager {
             public void run() {
                 for (Player player : plugin.getServer().getOnlinePlayers()) {
                     PlayerData data = getData(player.getUniqueId());
-                    if (data.currentHp < data.maxHp) {
-                        data.currentHp = Math.min(data.maxHp, data.currentHp + REGEN_AMOUNT);
-                        applyHealthToPlayer(player, data);
-                        updateActionBar(player, data);
+                    double maxVanilla = data.vanillaMaxHp();
+                    if (player.getHealth() < maxVanilla) {
+                        double newHp = Math.min(maxVanilla, player.getHealth() + REGEN_AMOUNT);
+                        player.setHealth(newHp);
+                        updateDisplay(player, data);
                     }
                 }
             }
@@ -64,46 +85,40 @@ public class RPGHealthManager {
 
     public void onPlayerJoin(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        applyHealthToPlayer(player, data);
-        updateActionBar(player, data);
+        applyMaxHp(player, data);
+        hideVanillaHealth(player);
+        updateDisplay(player, data);
     }
 
     public void onPlayerQuit(Player player) {
         saveData(player.getUniqueId());
     }
 
-    public void applyHealthToPlayer(Player player, PlayerData data) {
+    public void applyMaxHp(Player player, PlayerData data) {
         AttributeInstance maxHpAttr = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHpAttr != null) {
-            maxHpAttr.setBaseValue(data.maxHp);
+            maxHpAttr.setBaseValue(data.vanillaMaxHp());
         }
-        double clamped = Math.min(data.currentHp, data.maxHp);
-        data.currentHp = Math.max(0, clamped);
-        player.setHealth(data.currentHp);
+        // Clamp current HP
+        double maxVanilla = data.vanillaMaxHp();
+        if (player.getHealth() > maxVanilla) {
+            player.setHealth(maxVanilla);
+        }
     }
 
-    public void updateActionBar(Player player, PlayerData data) {
+    public void hideVanillaHealth(Player player) {
+        // Hide vanilla hearts by setting health scale to 0 display
+        player.setHealthScaled(true);
+        player.setHealthScale(0.0); // 0 = no hearts shown
+    }
+
+    public void updateDisplay(Player player, PlayerData data) {
+        double displayCurrent = data.toDisplay(player.getHealth());
+        double displayMax = data.displayMaxHp();
         String display = String.format("§c%.0f§7/§c%.0f §c❤  §eLv.%d",
-                data.currentHp, data.maxHp, data.level);
+                displayCurrent, displayMax, data.level);
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
                 new TextComponent(display));
-    }
-
-    public void damagePlayer(Player player, double amount) {
-        PlayerData data = getData(player.getUniqueId());
-        data.currentHp = Math.max(0, data.currentHp - amount);
-        applyHealthToPlayer(player, data);
-        updateActionBar(player, data);
-        if (data.currentHp <= 0) {
-            player.setHealth(0);
-        }
-    }
-
-    public void healPlayer(Player player, double amount) {
-        PlayerData data = getData(player.getUniqueId());
-        data.currentHp = Math.min(data.maxHp, data.currentHp + amount);
-        applyHealthToPlayer(player, data);
-        updateActionBar(player, data);
     }
 
     public void addXp(Player player, int amount) {
@@ -113,28 +128,27 @@ public class RPGHealthManager {
         while (data.xp >= xpNeeded) {
             data.xp -= xpNeeded;
             data.level++;
-            data.maxHp = BASE_HP + (data.level - 1) * HP_PER_LEVEL;
-            data.currentHp = data.maxHp;
-            applyHealthToPlayer(player, data);
+            applyMaxHp(player, data);
+            // Full heal on level up
+            player.setHealth(data.vanillaMaxHp());
             player.sendMessage("§a§l✦ LEVEL UP! §eYou are now level §f" + data.level + "§e!");
-            player.sendMessage("§eMax HP is now §f" + String.format("%.0f", data.maxHp) + "§e!");
+            player.sendMessage("§eMax HP is now §f" + String.format("%.0f", data.displayMaxHp()) + "§e!");
             player.getWorld().playSound(player.getLocation(),
                     org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             xpNeeded = getXpForNextLevel(data.level);
         }
-        updateActionBar(player, data);
+        updateDisplay(player, data);
     }
 
     public void setLevel(Player player, int level) {
         PlayerData data = getData(player.getUniqueId());
         data.level = Math.max(1, level);
-        data.maxHp = BASE_HP + (data.level - 1) * HP_PER_LEVEL;
-        data.currentHp = data.maxHp;
         data.xp = 0;
-        applyHealthToPlayer(player, data);
-        updateActionBar(player, data);
+        applyMaxHp(player, data);
+        player.setHealth(data.vanillaMaxHp());
+        updateDisplay(player, data);
         player.sendMessage("§aYour level has been set to §f" + data.level
-                + " §awith §f" + String.format("%.0f", data.maxHp) + " §amax HP!");
+                + " §awith §f" + String.format("%.0f", data.displayMaxHp()) + " §amax HP!");
     }
 
     public int getXpForNextLevel(int level) {
@@ -148,8 +162,6 @@ public class RPGHealthManager {
             FileConfiguration config = YamlConfiguration.loadConfiguration(file);
             data.level = config.getInt("level", 1);
             data.xp = config.getInt("xp", 0);
-            data.maxHp = BASE_HP + (data.level - 1) * HP_PER_LEVEL;
-            data.currentHp = config.getDouble("currentHp", data.maxHp);
         }
         return data;
     }
@@ -161,7 +173,6 @@ public class RPGHealthManager {
         FileConfiguration config = new YamlConfiguration();
         config.set("level", data.level);
         config.set("xp", data.xp);
-        config.set("currentHp", data.currentHp);
         try {
             config.save(file);
         } catch (IOException e) {
