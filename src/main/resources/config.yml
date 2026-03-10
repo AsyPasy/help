@@ -1,0 +1,7 @@
+# RPGHealth Configuration
+base-hp: 100
+hp-per-level: 2
+base-xp: 100
+xp-scale: 1.15
+regen-amount: 0.5
+regen-interval: 60
