@@ -44,7 +44,6 @@ public class RPGHealthListener implements Listener {
         healthManager.onPlayerQuit(event.getPlayer());
     }
 
-    // Update action bar whenever player takes damage
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
@@ -57,7 +56,6 @@ public class RPGHealthListener implements Listener {
         }.runTaskLater(plugin, 1L);
     }
 
-    // Damage indicator on mob hit
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityDamageByPlayer(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player)) return;
@@ -69,7 +67,6 @@ public class RPGHealthListener implements Listener {
         damageIndicator.spawnIndicator(entity.getLocation(), damage);
     }
 
-    // Damage indicator on PvP
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPvpDamage(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player)) return;
@@ -79,24 +76,21 @@ public class RPGHealthListener implements Listener {
         damageIndicator.spawnIndicator(target.getLocation(), damage);
     }
 
-    // Award XP on mob kill
-   @EventHandler
-public void onEntityDeath(EntityDeathEvent event) {
-    if (event.getEntity() instanceof Player) return;
-    Player killer = event.getEntity().getKiller();
-    if (killer == null) return;
-    AttributeInstance maxHp = event.getEntity()
-            .getAttribute(Attribute.GENERIC_MAX_HEALTH);
-    int xpReward = 5; // base XP halved from 10
-    if (maxHp != null) {
-        // 0.25 instead of 0.5 — 2x less XP per mob
-        xpReward = (int) (maxHp.getValue() * 0.25);
+    @EventHandler
+    public void onEntityDeath(EntityDeathEvent event) {
+        if (event.getEntity() instanceof Player) return;
+        Player killer = event.getEntity().getKiller();
+        if (killer == null) return;
+        AttributeInstance maxHp = event.getEntity()
+                .getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        int xpReward = 5;
+        if (maxHp != null) {
+            xpReward = (int) (maxHp.getValue() * 0.25);
+        }
+        healthManager.addXp(killer, xpReward);
+        // XP shown on action bar — no chat message
     }
-    healthManager.addXp(killer, xpReward);
-    // No chat message — XP shown on action bar instead
-}
 
-    // Respawn with 50% HP
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
@@ -109,7 +103,6 @@ public void onEntityDeath(EntityDeathEvent event) {
         }.runTaskLater(plugin, 5L);
     }
 
-    // Reapply on respawn
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
@@ -123,7 +116,6 @@ public void onEntityDeath(EntityDeathEvent event) {
         }.runTaskLater(plugin, 5L);
     }
 
-    // Keep action bar updated every second
     @EventHandler
     public void onPlayerJoinStartActionBar(PlayerJoinEvent event) {
         Player player = event.getPlayer();
