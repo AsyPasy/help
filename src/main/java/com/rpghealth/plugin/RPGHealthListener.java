@@ -11,7 +11,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -44,18 +43,21 @@ public class RPGHealthListener implements Listener {
         healthManager.onPlayerQuit(event.getPlayer());
     }
 
+    // Update action bar whenever player takes damage
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
         new BukkitRunnable() {
             @Override public void run() {
                 if (!player.isOnline()) return;
+                if (player.isDead()) return;
                 RPGHealthManager.PlayerData data = healthManager.getData(player.getUniqueId());
                 healthManager.updateDisplay(player, data);
             }
         }.runTaskLater(plugin, 1L);
     }
 
+    // Damage indicator on mob hit
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityDamageByPlayer(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player)) return;
@@ -67,6 +69,7 @@ public class RPGHealthListener implements Listener {
         damageIndicator.spawnIndicator(entity.getLocation(), damage);
     }
 
+    // Damage indicator on PvP
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPvpDamage(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player)) return;
@@ -76,6 +79,7 @@ public class RPGHealthListener implements Listener {
         damageIndicator.spawnIndicator(target.getLocation(), damage);
     }
 
+    // Award XP on mob kill
     @EventHandler
     public void onEntityDeath(EntityDeathEvent event) {
         if (event.getEntity() instanceof Player) return;
@@ -88,40 +92,35 @@ public class RPGHealthListener implements Listener {
             xpReward = (int) (maxHp.getValue() * 0.25);
         }
         healthManager.addXp(killer, xpReward);
-        // XP shown on action bar — no chat message
     }
 
-    @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
-        Player player = event.getEntity();
-        RPGHealthManager.PlayerData data = healthManager.getData(player.getUniqueId());
-        new BukkitRunnable() {
-            @Override public void run() {
-                player.setHealth(data.vanillaMaxHp() * 0.5);
-                healthManager.updateDisplay(player, data);
-            }
-        }.runTaskLater(plugin, 5L);
-    }
-
+    // On respawn — apply correct max HP and set to 50% after a short delay
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         new BukkitRunnable() {
             @Override public void run() {
+                if (!player.isOnline()) return;
                 RPGHealthManager.PlayerData data = healthManager.getData(player.getUniqueId());
                 healthManager.applyMaxHp(player, data);
                 healthManager.hideVanillaHealth(player);
+                // Respawn with 50% HP
+                double halfHp = data.vanillaMaxHp() * 0.5;
+                player.setHealth(Math.max(1.0, halfHp));
                 healthManager.updateDisplay(player, data);
+                player.sendMessage("§eYou respawned with §c50% §eHP!");
             }
-        }.runTaskLater(plugin, 5L);
+        }.runTaskLater(plugin, 10L);
     }
 
+    // Keep action bar updated every second
     @EventHandler
     public void onPlayerJoinStartActionBar(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         new BukkitRunnable() {
             @Override public void run() {
                 if (!player.isOnline()) { cancel(); return; }
+                if (player.isDead()) return;
                 RPGHealthManager.PlayerData data = healthManager.getData(player.getUniqueId());
                 healthManager.updateDisplay(player, data);
             }
