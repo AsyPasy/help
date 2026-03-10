@@ -97,22 +97,3 @@ public class RPGHealthPlugin extends JavaPlugin {
         return false;
     }
 }
-                }
-                Player target = getServer().getPlayer(args[0]);
-                if (target == null) {
-                    sender.sendMessage("§cPlayer not found!");
-                    return true;
-                }
-                try {
-                    int amount = Integer.parseInt(args[1]);
-                    healthManager.addXp(target, amount);
-                    sender.sendMessage("§aAdded " + amount + " XP to " + target.getName());
-                } catch (NumberFormatException e) {
-                    sender.sendMessage("§cInvalid XP amount!");
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-}
