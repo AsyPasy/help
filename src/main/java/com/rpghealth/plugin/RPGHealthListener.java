@@ -80,20 +80,21 @@ public class RPGHealthListener implements Listener {
     }
 
     // Award XP on mob kill
-    @EventHandler
-    public void onEntityDeath(EntityDeathEvent event) {
-        if (event.getEntity() instanceof Player) return;
-        Player killer = event.getEntity().getKiller();
-        if (killer == null) return;
-        AttributeInstance maxHp = event.getEntity()
-                .getAttribute(Attribute.GENERIC_MAX_HEALTH);
-        int xpReward = 10;
-        if (maxHp != null) {
-            xpReward = (int) (maxHp.getValue() * 0.5);
-        }
-        healthManager.addXp(killer, xpReward);
-        killer.sendMessage("§e+" + xpReward + " XP");
+   @EventHandler
+public void onEntityDeath(EntityDeathEvent event) {
+    if (event.getEntity() instanceof Player) return;
+    Player killer = event.getEntity().getKiller();
+    if (killer == null) return;
+    AttributeInstance maxHp = event.getEntity()
+            .getAttribute(Attribute.GENERIC_MAX_HEALTH);
+    int xpReward = 5; // base XP halved from 10
+    if (maxHp != null) {
+        // 0.25 instead of 0.5 — 2x less XP per mob
+        xpReward = (int) (maxHp.getValue() * 0.25);
     }
+    healthManager.addXp(killer, xpReward);
+    // No chat message — XP shown on action bar instead
+}
 
     // Respawn with 50% HP
     @EventHandler
