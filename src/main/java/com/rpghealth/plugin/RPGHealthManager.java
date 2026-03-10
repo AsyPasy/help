@@ -1,5 +1,7 @@
 package com.rpghealth.plugin;
 
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -19,17 +21,11 @@ public class RPGHealthManager {
     private final Map<UUID, PlayerData> playerData = new HashMap<>();
     private File dataFolder;
 
-    // Start at 100 HP
     private static final double BASE_HP = 100.0;
-    // HP gained per level
     private static final double HP_PER_LEVEL = 2.0;
-    // Base XP needed to level up
     private static final int BASE_XP = 100;
-    // XP scaling per level
     private static final double XP_SCALE = 1.15;
-    // Regen per tick
     private static final double REGEN_AMOUNT = 0.5;
-    // Regen interval in ticks (3 seconds)
     private static final long REGEN_INTERVAL = 60L;
 
     public static class PlayerData {
@@ -88,7 +84,8 @@ public class RPGHealthManager {
     public void updateActionBar(Player player, PlayerData data) {
         String display = String.format("§c%.0f§7/§c%.0f §c❤  §eLv.%d",
                 data.currentHp, data.maxHp, data.level);
-        player.sendActionBar(display);
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                new TextComponent(display));
     }
 
     public void damagePlayer(Player player, double amount) {
@@ -174,4 +171,5 @@ public class RPGHealthManager {
     public void saveAll() {
         playerData.keySet().forEach(this::saveData);
     }
+}
 }
