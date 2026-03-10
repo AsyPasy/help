@@ -19,7 +19,7 @@ public class RPGHealthManager {
 
     private final RPGHealthPlugin plugin;
     private final Map<UUID, PlayerData> playerData = new HashMap<>();
-    private File dataFolder;
+    private final File dataFolder;
 
     private static final double BASE_HP = 100.0;
     private static final double HP_PER_LEVEL = 2.0;
@@ -44,7 +44,8 @@ public class RPGHealthManager {
 
     private void startRegenTask() {
         new BukkitRunnable() {
-            @Override public void run() {
+            @Override
+            public void run() {
                 for (Player player : plugin.getServer().getOnlinePlayers()) {
                     PlayerData data = getData(player.getUniqueId());
                     if (data.currentHp < data.maxHp) {
