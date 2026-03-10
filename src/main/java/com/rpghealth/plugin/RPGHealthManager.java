@@ -23,9 +23,7 @@ public class RPGHealthManager {
 
     private static final double VANILLA_BASE_HP = 20.0;
     private static final double DISPLAY_BASE_HP = 100.0;
-    // Half a heart = 1 vanilla HP = 5 display HP
     private static final double DISPLAY_HP_PER_LEVEL = 5.0;
-    // 2x harder to level up
     private static final int BASE_XP = 200;
     private static final double XP_SCALE = 1.3;
     private static final double REGEN_AMOUNT = 0.1;
@@ -43,11 +41,6 @@ public class RPGHealthManager {
             return (vanillaHp / vanillaMaxHp()) * displayMaxHp();
         }
 
-        public double toVanilla(double displayHp) {
-            return (displayHp / displayMaxHp()) * vanillaMaxHp();
-        }
-
-        // Each level adds exactly 0.5 vanilla HP (half a heart)
         public double vanillaMaxHp() {
             return VANILLA_BASE_HP + (level - 1) * 0.5;
         }
@@ -65,6 +58,7 @@ public class RPGHealthManager {
             @Override
             public void run() {
                 for (Player player : plugin.getServer().getOnlinePlayers()) {
+                    if (player.isDead()) continue;
                     PlayerData data = getData(player.getUniqueId());
                     double maxVanilla = data.vanillaMaxHp();
                     if (player.getHealth() < maxVanilla) {
@@ -84,7 +78,6 @@ public class RPGHealthManager {
     public void onPlayerJoin(Player player) {
         PlayerData data = getData(player.getUniqueId());
         applyMaxHp(player, data);
-        hideVanillaHealth(player);
         updateDisplay(player, data);
     }
 
@@ -102,12 +95,8 @@ public class RPGHealthManager {
         }
     }
 
-    public void hideVanillaHealth(Player player) {
-        player.setHealthScaled(true);
-        player.setHealthScale(0.0);
-    }
-
     public void updateDisplay(Player player, PlayerData data) {
+        if (player.isDead()) return;
         double displayCurrent = data.toDisplay(player.getHealth());
         double displayMax = data.displayMaxHp();
         String display = String.format("§c%.0f§7/§c%.0f §c❤  §eLv.%d",
@@ -116,8 +105,8 @@ public class RPGHealthManager {
                 new TextComponent(display));
     }
 
-    // Show XP gain near the action bar without spamming chat
     public void showXpGain(Player player, int amount) {
+        if (player.isDead()) return;
         PlayerData data = getData(player.getUniqueId());
         double displayCurrent = data.toDisplay(player.getHealth());
         double displayMax = data.displayMaxHp();
@@ -129,7 +118,6 @@ public class RPGHealthManager {
 
     public void addXp(Player player, int amount) {
         PlayerData data = getData(player.getUniqueId());
-        // Show XP gain on action bar briefly
         showXpGain(player, amount);
         data.xp += amount;
         int xpNeeded = getXpForNextLevel(data.level);
