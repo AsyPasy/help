@@ -172,4 +172,3 @@ public class RPGHealthManager {
         playerData.keySet().forEach(this::saveData);
     }
 }
-}
