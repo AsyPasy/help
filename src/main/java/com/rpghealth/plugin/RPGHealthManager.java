@@ -21,37 +21,35 @@ public class RPGHealthManager {
     private final Map<UUID, PlayerData> playerData = new HashMap<>();
     private final File dataFolder;
 
-    // Vanilla max HP stays at 20 always — we just display it as 100
     private static final double VANILLA_BASE_HP = 20.0;
     private static final double DISPLAY_BASE_HP = 100.0;
-    private static final double DISPLAY_HP_PER_LEVEL = 2.0;
-    private static final int BASE_XP = 100;
-    private static final double XP_SCALE = 1.15;
-    private static final double REGEN_AMOUNT = 0.1; // in vanilla HP (0.1 = 0.5 display HP)
+    // Half a heart = 1 vanilla HP = 5 display HP
+    private static final double DISPLAY_HP_PER_LEVEL = 5.0;
+    // 2x harder to level up
+    private static final int BASE_XP = 200;
+    private static final double XP_SCALE = 1.3;
+    private static final double REGEN_AMOUNT = 0.1;
     private static final long REGEN_INTERVAL = 60L;
 
     public static class PlayerData {
         public int level = 1;
         public int xp = 0;
 
-        // Display values only — actual HP stays vanilla scaled
         public double displayMaxHp() {
             return DISPLAY_BASE_HP + (level - 1) * DISPLAY_HP_PER_LEVEL;
         }
 
-        // Convert vanilla HP to display HP
         public double toDisplay(double vanillaHp) {
-            return (vanillaHp / VANILLA_BASE_HP) * displayMaxHp();
+            return (vanillaHp / vanillaMaxHp()) * displayMaxHp();
         }
 
-        // Convert display HP to vanilla HP
         public double toVanilla(double displayHp) {
-            return (displayHp / displayMaxHp()) * VANILLA_BASE_HP;
+            return (displayHp / displayMaxHp()) * vanillaMaxHp();
         }
 
-        // Max vanilla HP scales slightly with level — +0.4 vanilla per level
+        // Each level adds exactly 0.5 vanilla HP (half a heart)
         public double vanillaMaxHp() {
-            return VANILLA_BASE_HP + (level - 1) * 0.4;
+            return VANILLA_BASE_HP + (level - 1) * 0.5;
         }
     }
 
@@ -99,17 +97,14 @@ public class RPGHealthManager {
         if (maxHpAttr != null) {
             maxHpAttr.setBaseValue(data.vanillaMaxHp());
         }
-        // Clamp current HP
-        double maxVanilla = data.vanillaMaxHp();
-        if (player.getHealth() > maxVanilla) {
-            player.setHealth(maxVanilla);
+        if (player.getHealth() > data.vanillaMaxHp()) {
+            player.setHealth(data.vanillaMaxHp());
         }
     }
 
     public void hideVanillaHealth(Player player) {
-        // Hide vanilla hearts by setting health scale to 0 display
         player.setHealthScaled(true);
-        player.setHealthScale(0.0); // 0 = no hearts shown
+        player.setHealthScale(0.0);
     }
 
     public void updateDisplay(Player player, PlayerData data) {
@@ -121,15 +116,27 @@ public class RPGHealthManager {
                 new TextComponent(display));
     }
 
+    // Show XP gain near the action bar without spamming chat
+    public void showXpGain(Player player, int amount) {
+        PlayerData data = getData(player.getUniqueId());
+        double displayCurrent = data.toDisplay(player.getHealth());
+        double displayMax = data.displayMaxHp();
+        String display = String.format("§c%.0f§7/§c%.0f §c❤  §eLv.%d  §a+%d XP",
+                displayCurrent, displayMax, data.level, amount);
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                new TextComponent(display));
+    }
+
     public void addXp(Player player, int amount) {
         PlayerData data = getData(player.getUniqueId());
+        // Show XP gain on action bar briefly
+        showXpGain(player, amount);
         data.xp += amount;
         int xpNeeded = getXpForNextLevel(data.level);
         while (data.xp >= xpNeeded) {
             data.xp -= xpNeeded;
             data.level++;
             applyMaxHp(player, data);
-            // Full heal on level up
             player.setHealth(data.vanillaMaxHp());
             player.sendMessage("§a§l✦ LEVEL UP! §eYou are now level §f" + data.level + "§e!");
             player.sendMessage("§eMax HP is now §f" + String.format("%.0f", data.displayMaxHp()) + "§e!");
