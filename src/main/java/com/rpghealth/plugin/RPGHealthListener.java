@@ -94,23 +94,30 @@ public class RPGHealthListener implements Listener {
         healthManager.addXp(killer, xpReward);
     }
 
-    // On respawn — apply correct max HP and set to 50% after a short delay
-    @EventHandler
+    // Respawn — do everything AFTER respawn is fully processed
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
+        // Wait 20 ticks (1 second) after respawn to ensure player is fully loaded
         new BukkitRunnable() {
+            int attempts = 0;
             @Override public void run() {
-                if (!player.isOnline()) return;
+                attempts++;
+                // Give up after 5 attempts
+                if (attempts > 5) { cancel(); return; }
+                if (!player.isOnline()) { cancel(); return; }
+                // Wait until player is not dead and is on solid ground
+                if (player.isDead()) return;
+                cancel();
                 RPGHealthManager.PlayerData data = healthManager.getData(player.getUniqueId());
                 healthManager.applyMaxHp(player, data);
                 healthManager.hideVanillaHealth(player);
-                // Respawn with 50% HP
-                double halfHp = data.vanillaMaxHp() * 0.5;
-                player.setHealth(Math.max(1.0, halfHp));
+                double halfHp = Math.max(1.0, data.vanillaMaxHp() * 0.5);
+                player.setHealth(halfHp);
                 healthManager.updateDisplay(player, data);
                 player.sendMessage("§eYou respawned with §c50% §eHP!");
             }
-        }.runTaskLater(plugin, 10L);
+        }.runTaskTimer(plugin, 20L, 10L);
     }
 
     // Keep action bar updated every second
