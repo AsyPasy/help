@@ -19,17 +19,17 @@ public class RPGHealthManager {
     private final Map<UUID, PlayerData> playerData = new HashMap<>();
     private File dataFolder;
 
-    // Base HP at level 1
-    private static final double BASE_HP = 20.0;
+    // Start at 100 HP
+    private static final double BASE_HP = 100.0;
     // HP gained per level
     private static final double HP_PER_LEVEL = 2.0;
-    // Base XP needed to level up from level 1
+    // Base XP needed to level up
     private static final int BASE_XP = 100;
-    // XP scaling per level (each level needs more XP)
+    // XP scaling per level
     private static final double XP_SCALE = 1.15;
-    // Regen amount per regen tick
+    // Regen per tick
     private static final double REGEN_AMOUNT = 0.5;
-    // Regen interval in ticks (60 ticks = 3 seconds)
+    // Regen interval in ticks (3 seconds)
     private static final long REGEN_INTERVAL = 60L;
 
     public static class PlayerData {
@@ -54,6 +54,7 @@ public class RPGHealthManager {
                     if (data.currentHp < data.maxHp) {
                         data.currentHp = Math.min(data.maxHp, data.currentHp + REGEN_AMOUNT);
                         applyHealthToPlayer(player, data);
+                        updateActionBar(player, data);
                     }
                 }
             }
@@ -79,30 +80,15 @@ public class RPGHealthManager {
         if (maxHpAttr != null) {
             maxHpAttr.setBaseValue(data.maxHp);
         }
-        // Clamp current HP to max
         double clamped = Math.min(data.currentHp, data.maxHp);
-        data.currentHp = clamped;
-        player.setHealth(clamped);
+        data.currentHp = Math.max(0, clamped);
+        player.setHealth(data.currentHp);
     }
 
     public void updateActionBar(Player player, PlayerData data) {
-        // Build heart display
-        int totalHearts = (int) (data.maxHp / 2);
-        int fullHearts = (int) (data.currentHp / 2);
-        int halfHeart = (data.currentHp % 2 >= 1) ? 1 : 0;
-        int emptyHearts = totalHearts - fullHearts - halfHeart;
-
-        StringBuilder bar = new StringBuilder("§c");
-        for (int i = 0; i < fullHearts; i++) bar.append("❤");
-        if (halfHeart == 1) bar.append("§4♥");
-        bar.append("§8");
-        for (int i = 0; i < emptyHearts; i++) bar.append("❤");
-
-        bar.append(" §f").append(String.format("%.1f", data.currentHp))
-           .append("§7/§f").append(String.format("%.0f", data.maxHp));
-        bar.append("  §eLv.").append(data.level);
-
-        player.sendActionBar(bar.toString());
+        String display = String.format("§c%.0f§7/§c%.0f §c❤  §eLv.%d",
+                data.currentHp, data.maxHp, data.level);
+        player.sendActionBar(display);
     }
 
     public void damagePlayer(Player player, double amount) {
@@ -111,7 +97,7 @@ public class RPGHealthManager {
         applyHealthToPlayer(player, data);
         updateActionBar(player, data);
         if (data.currentHp <= 0) {
-            player.setHealth(0); // triggers death
+            player.setHealth(0);
         }
     }
 
@@ -130,10 +116,10 @@ public class RPGHealthManager {
             data.xp -= xpNeeded;
             data.level++;
             data.maxHp = BASE_HP + (data.level - 1) * HP_PER_LEVEL;
-            data.currentHp = data.maxHp; // full heal on level up
+            data.currentHp = data.maxHp;
             applyHealthToPlayer(player, data);
             player.sendMessage("§a§l✦ LEVEL UP! §eYou are now level §f" + data.level + "§e!");
-            player.sendMessage("§eMax HP increased to §f" + String.format("%.0f", data.maxHp) + "§e!");
+            player.sendMessage("§eMax HP is now §f" + String.format("%.0f", data.maxHp) + "§e!");
             player.getWorld().playSound(player.getLocation(),
                     org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             xpNeeded = getXpForNextLevel(data.level);
