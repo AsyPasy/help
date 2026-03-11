@@ -1,23 +1,24 @@
 name: RPGHealth
-version: 1.0.0
+version: 1.0.1
 main: com.rpghealth.plugin.RPGHealthPlugin
-api-version: 1.21
-description: RPG Health System with leveling and damage indicators
+api-version: 1.20
+description: RPG Health and Leveling System
 author: RPGHealth
 
 commands:
   rpghealth:
-    description: Show your RPG health stats
+    description: Shows your RPG health stats
     usage: /rpghealth
   sethealth:
-    description: Set a player's health level
+    description: Sets a player's level
     usage: /sethealth <player> <level>
     permission: rpghealth.admin
   addxp:
-    description: Add XP to a player
+    description: Adds XP to a player
     usage: /addxp <player> <amount>
     permission: rpghealth.admin
 
 permissions:
   rpghealth.admin:
+    description: Access to admin commands
     default: op
