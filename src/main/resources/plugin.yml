@@ -4,6 +4,7 @@ main: com.rpghealth.plugin.RPGHealthPlugin
 api-version: 1.20
 description: RPG Health and Leveling System
 author: RPGHealth
+depend: [ProtocolLib]
 
 commands:
   rpghealth:
