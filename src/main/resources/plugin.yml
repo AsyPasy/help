@@ -17,6 +17,10 @@ commands:
     description: Adds XP to a player
     usage: /addxp <player> <amount>
     permission: rpghealth.admin
+  rpgreset:
+    description: Resets a player's RPG data
+    usage: /rpgreset <player>
+    permission: rpghealth.admin
 
 permissions:
   rpghealth.admin:
