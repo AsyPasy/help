@@ -16,7 +16,7 @@
         </repository>
         <repository>
             <id>protocollib-repo</id>
-            <url>https://repo.dmulloy2.net/repository/public/</url>
+            <url>https://repo.dmulloy2.net/repository/snapshots/</url>
         </repository>
     </repositories>
 
