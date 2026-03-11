@@ -101,6 +101,27 @@ public class RPGHealthPlugin extends JavaPlugin {
                 }
                 return true;
             }
+            case "rpgreset" -> {
+                if (!sender.hasPermission("rpghealth.admin")) {
+                    sender.sendMessage("\u00a7cNo permission!");
+                    return true;
+                }
+                if (args.length < 1) {
+                    sender.sendMessage("\u00a7cUsage: /rpgreset <player>");
+                    return true;
+                }
+                Player target = getServer().getPlayer(args[0]);
+                if (target == null) {
+                    sender.sendMessage("\u00a7cPlayer not found! They must be online.");
+                    return true;
+                }
+                healthManager.resetPlayer(target);
+                sender.sendMessage("\u00a7aReset \u00a7f" + target.getName()
+                        + "\u00a7a's RPG data to level 1!");
+                target.sendMessage(
+                        "\u00a7cYour RPG data has been reset to level 1!");
+                return true;
+            }
         }
         return false;
     }
