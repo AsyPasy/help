@@ -1,10 +1,9 @@
 name: RPGHealth
-version: 1.0.1
+version: 1.0.0
 main: com.rpghealth.plugin.RPGHealthPlugin
 api-version: 1.20
 description: RPG Health and Leveling System
 author: RPGHealth
-depend: [ProtocolLib]
 
 commands:
   rpghealth:
@@ -19,7 +18,7 @@ commands:
     usage: /addxp <player> <amount>
     permission: rpghealth.admin
   rpgreset:
-    description: Resets a player's RPG data
+    description: Resets a player's RPG data to level 1
     usage: /rpgreset <player>
     permission: rpghealth.admin
 
