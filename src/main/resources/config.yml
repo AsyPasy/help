@@ -1,7 +1,11 @@
 # RPGHealth Configuration
-base-hp: 100
-hp-per-level: 2
-base-xp: 100
-xp-scale: 1.15
-regen-amount: 0.5
-regen-interval: 60
+settings:
+  base-display-hp: 100
+  display-hp-per-level: 5
+  base-vanilla-hp: 20
+  vanilla-hp-per-level: 0.5
+  regen-amount: 0.1
+  regen-interval: 60
+  base-xp: 200
+  xp-scale: 1.3
+  respawn-hp-percent: 0.5
