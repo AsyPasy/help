@@ -146,7 +146,8 @@ public class RPGHealthManager {
             data.level++;
             applyMaxHp(player, data);
             player.setHealth(data.vanillaMaxHp());
-            player.sendMessage("\u00a7a\u00a7l\u2756 LEVEL UP! \u00a7eYou are now level \u00a7f"
+            player.sendMessage(
+                    "\u00a7a\u00a7l\u2756 LEVEL UP! \u00a7eYou are now level \u00a7f"
                     + data.level + "\u00a7e!");
             player.sendMessage("\u00a7eMax HP is now \u00a7f"
                     + String.format("%.0f", data.displayMaxHp()) + "\u00a7e!");
@@ -168,6 +169,17 @@ public class RPGHealthManager {
                 + data.level + " \u00a7awith \u00a7f"
                 + String.format("%.0f", data.displayMaxHp())
                 + " \u00a7amax HP!");
+    }
+
+    public void resetPlayer(Player player) {
+        UUID uuid = player.getUniqueId();
+        PlayerData data = new PlayerData();
+        playerData.put(uuid, data);
+        applyMaxHp(player, data);
+        player.setHealth(data.vanillaMaxHp());
+        updateDisplay(player, data);
+        File file = new File(dataFolder, uuid.toString() + ".yml");
+        if (file.exists()) file.delete();
     }
 
     public int getXpForNextLevel(int level) {
