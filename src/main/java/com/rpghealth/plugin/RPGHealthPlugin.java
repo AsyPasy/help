@@ -30,66 +30,74 @@ public class RPGHealthPlugin extends JavaPlugin {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(CommandSender sender, Command command,
+                             String label, String[] args) {
         switch (command.getName().toLowerCase()) {
             case "rpghealth" -> {
                 if (!(sender instanceof Player player)) {
                     sender.sendMessage("Only players can use this!");
                     return true;
                 }
-                RPGHealthManager.PlayerData data = healthManager.getData(player.getUniqueId());
+                RPGHealthManager.PlayerData data =
+                        healthManager.getData(player.getUniqueId());
                 double displayCurrent = data.toDisplay(player.getHealth());
                 double displayMax = data.displayMaxHp();
-                player.sendMessage("§6§l--- Your RPG Health Stats ---");
-                player.sendMessage("§eLevel: §f" + data.level);
-                player.sendMessage("§eMax HP: §f" + String.format("%.0f", displayMax));
-                player.sendMessage("§eCurrent HP: §f" + String.format("%.1f", displayCurrent));
-                player.sendMessage("§eXP: §f" + data.xp + " / " + healthManager.getXpForNextLevel(data.level));
+                int xpNeeded = healthManager.getXpForNextLevel(data.level);
+                player.sendMessage("\u00a76\u00a7l--- Your RPG Health Stats ---");
+                player.sendMessage("\u00a7eLevel: \u00a7f" + data.level);
+                player.sendMessage("\u00a7eMax HP: \u00a7f"
+                        + String.format("%.0f", displayMax));
+                player.sendMessage("\u00a7eCurrent HP: \u00a7f"
+                        + String.format("%.1f", displayCurrent));
+                player.sendMessage("\u00a7eXP: \u00a7f" + data.xp
+                        + " \u00a7e/ \u00a7f" + xpNeeded);
                 return true;
             }
             case "sethealth" -> {
                 if (!sender.hasPermission("rpghealth.admin")) {
-                    sender.sendMessage("§cNo permission!");
+                    sender.sendMessage("\u00a7cNo permission!");
                     return true;
                 }
                 if (args.length < 2) {
-                    sender.sendMessage("§cUsage: /sethealth <player> <level>");
+                    sender.sendMessage("\u00a7cUsage: /sethealth <player> <level>");
                     return true;
                 }
                 Player target = getServer().getPlayer(args[0]);
                 if (target == null) {
-                    sender.sendMessage("§cPlayer not found!");
+                    sender.sendMessage("\u00a7cPlayer not found!");
                     return true;
                 }
                 try {
                     int level = Integer.parseInt(args[1]);
                     healthManager.setLevel(target, level);
-                    sender.sendMessage("§aSet " + target.getName() + "'s level to " + level);
+                    sender.sendMessage("\u00a7aSet " + target.getName()
+                            + "'s level to " + level);
                 } catch (NumberFormatException e) {
-                    sender.sendMessage("§cInvalid level number!");
+                    sender.sendMessage("\u00a7cInvalid level number!");
                 }
                 return true;
             }
             case "addxp" -> {
                 if (!sender.hasPermission("rpghealth.admin")) {
-                    sender.sendMessage("§cNo permission!");
+                    sender.sendMessage("\u00a7cNo permission!");
                     return true;
                 }
                 if (args.length < 2) {
-                    sender.sendMessage("§cUsage: /addxp <player> <amount>");
+                    sender.sendMessage("\u00a7cUsage: /addxp <player> <amount>");
                     return true;
                 }
                 Player target = getServer().getPlayer(args[0]);
                 if (target == null) {
-                    sender.sendMessage("§cPlayer not found!");
+                    sender.sendMessage("\u00a7cPlayer not found!");
                     return true;
                 }
                 try {
                     int amount = Integer.parseInt(args[1]);
                     healthManager.addXp(target, amount);
-                    sender.sendMessage("§aAdded " + amount + " XP to " + target.getName());
+                    sender.sendMessage("\u00a7aAdded " + amount
+                            + " XP to " + target.getName());
                 } catch (NumberFormatException e) {
-                    sender.sendMessage("§cInvalid XP amount!");
+                    sender.sendMessage("\u00a7cInvalid XP amount!");
                 }
                 return true;
             }
