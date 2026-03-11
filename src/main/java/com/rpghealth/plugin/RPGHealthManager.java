@@ -21,15 +21,16 @@ public class RPGHealthManager {
     private final Map<UUID, PlayerData> playerData = new HashMap<>();
     private final File dataFolder;
 
-    private static final double VANILLA_BASE_HP = 20.0;
-    private static final double DISPLAY_BASE_HP = 100.0;
-    private static final double DISPLAY_HP_PER_LEVEL = 5.0;
-    private static final int BASE_XP = 200;
-    private static final double XP_SCALE = 1.3;
-    private static final double REGEN_AMOUNT = 0.1;
-    private static final long REGEN_INTERVAL = 60L;
+    private final double VANILLA_BASE_HP;
+    private final double DISPLAY_BASE_HP;
+    private final double DISPLAY_HP_PER_LEVEL;
+    private final double VANILLA_HP_PER_LEVEL;
+    private final double REGEN_AMOUNT;
+    private final long REGEN_INTERVAL;
+    private final int BASE_XP;
+    private final double XP_SCALE;
 
-    public static class PlayerData {
+    public class PlayerData {
         public int level = 1;
         public int xp = 0;
 
@@ -41,8 +42,12 @@ public class RPGHealthManager {
             return (vanillaHp / vanillaMaxHp()) * displayMaxHp();
         }
 
+        public double toVanilla(double displayHp) {
+            return (displayHp / displayMaxHp()) * vanillaMaxHp();
+        }
+
         public double vanillaMaxHp() {
-            return VANILLA_BASE_HP + (level - 1) * 0.5;
+            return VANILLA_BASE_HP + (level - 1) * VANILLA_HP_PER_LEVEL;
         }
     }
 
@@ -50,6 +55,17 @@ public class RPGHealthManager {
         this.plugin = plugin;
         this.dataFolder = new File(plugin.getDataFolder(), "playerdata");
         if (!dataFolder.exists()) dataFolder.mkdirs();
+
+        FileConfiguration cfg = plugin.getConfig();
+        VANILLA_BASE_HP      = cfg.getDouble("settings.base-vanilla-hp", 20.0);
+        DISPLAY_BASE_HP      = cfg.getDouble("settings.base-display-hp", 100.0);
+        DISPLAY_HP_PER_LEVEL = cfg.getDouble("settings.display-hp-per-level", 5.0);
+        VANILLA_HP_PER_LEVEL = cfg.getDouble("settings.vanilla-hp-per-level", 0.5);
+        REGEN_AMOUNT         = cfg.getDouble("settings.regen-amount", 0.1);
+        REGEN_INTERVAL       = cfg.getLong("settings.regen-interval", 60L);
+        BASE_XP              = cfg.getInt("settings.base-xp", 200);
+        XP_SCALE             = cfg.getDouble("settings.xp-scale", 1.3);
+
         startRegenTask();
     }
 
@@ -62,7 +78,8 @@ public class RPGHealthManager {
                     PlayerData data = getData(player.getUniqueId());
                     double maxVanilla = data.vanillaMaxHp();
                     if (player.getHealth() < maxVanilla) {
-                        double newHp = Math.min(maxVanilla, player.getHealth() + REGEN_AMOUNT);
+                        double newHp = Math.min(maxVanilla,
+                                player.getHealth() + REGEN_AMOUNT);
                         player.setHealth(newHp);
                         updateDisplay(player, data);
                     }
@@ -86,7 +103,8 @@ public class RPGHealthManager {
     }
 
     public void applyMaxHp(Player player, PlayerData data) {
-        AttributeInstance maxHpAttr = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        AttributeInstance maxHpAttr =
+                player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHpAttr != null) {
             maxHpAttr.setBaseValue(data.vanillaMaxHp());
         }
@@ -99,7 +117,8 @@ public class RPGHealthManager {
         if (player.isDead()) return;
         double displayCurrent = data.toDisplay(player.getHealth());
         double displayMax = data.displayMaxHp();
-        String display = String.format("§c%.0f§7/§c%.0f §c❤  §eLv.%d",
+        String display = String.format(
+                "\u00a7c%.0f\u00a77/\u00a7c%.0f \u00a7c\u2764  \u00a7eLv.%d",
                 displayCurrent, displayMax, data.level);
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
                 new TextComponent(display));
@@ -110,7 +129,8 @@ public class RPGHealthManager {
         PlayerData data = getData(player.getUniqueId());
         double displayCurrent = data.toDisplay(player.getHealth());
         double displayMax = data.displayMaxHp();
-        String display = String.format("§c%.0f§7/§c%.0f §c❤  §eLv.%d  §a+%d XP",
+        String display = String.format(
+                "\u00a7c%.0f\u00a77/\u00a7c%.0f \u00a7c\u2764  \u00a7eLv.%d  \u00a7a+%d XP",
                 displayCurrent, displayMax, data.level, amount);
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
                 new TextComponent(display));
@@ -126,8 +146,10 @@ public class RPGHealthManager {
             data.level++;
             applyMaxHp(player, data);
             player.setHealth(data.vanillaMaxHp());
-            player.sendMessage("§a§l✦ LEVEL UP! §eYou are now level §f" + data.level + "§e!");
-            player.sendMessage("§eMax HP is now §f" + String.format("%.0f", data.displayMaxHp()) + "§e!");
+            player.sendMessage("\u00a7a\u00a7l\u2756 LEVEL UP! \u00a7eYou are now level \u00a7f"
+                    + data.level + "\u00a7e!");
+            player.sendMessage("\u00a7eMax HP is now \u00a7f"
+                    + String.format("%.0f", data.displayMaxHp()) + "\u00a7e!");
             player.getWorld().playSound(player.getLocation(),
                     org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             xpNeeded = getXpForNextLevel(data.level);
@@ -142,8 +164,10 @@ public class RPGHealthManager {
         applyMaxHp(player, data);
         player.setHealth(data.vanillaMaxHp());
         updateDisplay(player, data);
-        player.sendMessage("§aYour level has been set to §f" + data.level
-                + " §awith §f" + String.format("%.0f", data.displayMaxHp()) + " §amax HP!");
+        player.sendMessage("\u00a7aYour level has been set to \u00a7f"
+                + data.level + " \u00a7awith \u00a7f"
+                + String.format("%.0f", data.displayMaxHp())
+                + " \u00a7amax HP!");
     }
 
     public int getXpForNextLevel(int level) {
@@ -154,9 +178,10 @@ public class RPGHealthManager {
         File file = new File(dataFolder, uuid.toString() + ".yml");
         PlayerData data = new PlayerData();
         if (file.exists()) {
-            FileConfiguration config = YamlConfiguration.loadConfiguration(file);
+            FileConfiguration config =
+                    YamlConfiguration.loadConfiguration(file);
             data.level = config.getInt("level", 1);
-            data.xp = config.getInt("xp", 0);
+            data.xp    = config.getInt("xp", 0);
         }
         return data;
     }
