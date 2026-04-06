@@ -5,6 +5,9 @@ api-version: 1.20
 description: RPG Health and Leveling System
 author: RPGHealth
 
+# ProtocolLib must be present on the server for smooth damage indicators
+depend: [ProtocolLib]
+
 commands:
   rpghealth:
     description: Shows your RPG health stats
