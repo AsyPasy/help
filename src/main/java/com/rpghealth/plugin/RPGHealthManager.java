@@ -1,9 +1,11 @@
 package com.rpghealth.plugin;
 
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -19,6 +21,7 @@ public class RPGHealthManager {
 
     private final RPGHealthPlugin plugin;
     private final Map<UUID, PlayerData> playerData = new HashMap<>();
+    private final Map<UUID, BossBar> bossBars = new HashMap<>();
     private final File dataFolder;
 
     private final double VANILLA_BASE_HP;
@@ -69,6 +72,76 @@ public class RPGHealthManager {
         startRegenTask();
     }
 
+    // --- Boss Bar helpers ---
+
+    private BossBar getOrCreateBar(Player player) {
+        return bossBars.computeIfAbsent(player.getUniqueId(), k -> {
+            BossBar bar = Bukkit.createBossBar("", BarColor.RED, BarStyle.SOLID);
+            bar.addPlayer(player);
+            return bar;
+        });
+    }
+
+    private void removeBar(Player player) {
+        BossBar bar = bossBars.remove(player.getUniqueId());
+        if (bar != null) {
+            bar.removePlayer(player);
+            bar.setVisible(false);
+        }
+    }
+
+    // Converts current HP into a 0.0–1.0 progress value for the boss bar fill.
+    private double barProgress(double current, double max) {
+        if (max <= 0) return 0;
+        return Math.max(0.0, Math.min(1.0, current / max));
+    }
+
+    // Picks a bar color based on how much HP the player has left.
+    private BarColor barColor(double progressFraction) {
+        if (progressFraction > 0.5) return BarColor.RED;
+        if (progressFraction > 0.25) return BarColor.YELLOW;
+        return BarColor.WHITE;
+    }
+
+    // --- Display update ---
+
+    public void updateDisplay(Player player, PlayerData data) {
+        if (player.isDead()) return;
+        double displayCurrent = data.toDisplay(player.getHealth());
+        double displayMax     = data.displayMaxHp();
+        double progress       = barProgress(displayCurrent, displayMax);
+
+        String title = String.format(
+                "\u00a7c%.0f\u00a77/\u00a7c%.0f \u00a7c\u2764  \u00a7eLv.%d",
+                displayCurrent, displayMax, data.level);
+
+        BossBar bar = getOrCreateBar(player);
+        bar.setTitle(title);
+        bar.setProgress(progress);
+        bar.setColor(barColor(progress));
+        bar.setVisible(true);
+    }
+
+    public void showXpGain(Player player, int amount) {
+        if (player.isDead()) return;
+        PlayerData data        = getData(player.getUniqueId());
+        double displayCurrent  = data.toDisplay(player.getHealth());
+        double displayMax      = data.displayMaxHp();
+        double progress        = barProgress(displayCurrent, displayMax);
+
+        String title = String.format(
+                "\u00a7c%.0f\u00a77/\u00a7c%.0f \u00a7c\u2764  \u00a7eLv.%d  \u00a7a+%d XP",
+                displayCurrent, displayMax, data.level, amount);
+
+        BossBar bar = getOrCreateBar(player);
+        bar.setTitle(title);
+        bar.setProgress(progress);
+        bar.setColor(barColor(progress));
+        bar.setVisible(true);
+    }
+
+    // --- Regen task ---
+
     private void startRegenTask() {
         new BukkitRunnable() {
             @Override
@@ -88,6 +161,8 @@ public class RPGHealthManager {
         }.runTaskTimer(plugin, REGEN_INTERVAL, REGEN_INTERVAL);
     }
 
+    // --- Player data lifecycle ---
+
     public PlayerData getData(UUID uuid) {
         return playerData.computeIfAbsent(uuid, k -> loadData(k));
     }
@@ -99,6 +174,7 @@ public class RPGHealthManager {
     }
 
     public void onPlayerQuit(Player player) {
+        removeBar(player);
         saveData(player.getUniqueId());
     }
 
@@ -111,29 +187,6 @@ public class RPGHealthManager {
         if (player.getHealth() > data.vanillaMaxHp()) {
             player.setHealth(data.vanillaMaxHp());
         }
-    }
-
-    public void updateDisplay(Player player, PlayerData data) {
-        if (player.isDead()) return;
-        double displayCurrent = data.toDisplay(player.getHealth());
-        double displayMax = data.displayMaxHp();
-        String display = String.format(
-                "\u00a7c%.0f\u00a77/\u00a7c%.0f \u00a7c\u2764  \u00a7eLv.%d",
-                displayCurrent, displayMax, data.level);
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                new TextComponent(display));
-    }
-
-    public void showXpGain(Player player, int amount) {
-        if (player.isDead()) return;
-        PlayerData data = getData(player.getUniqueId());
-        double displayCurrent = data.toDisplay(player.getHealth());
-        double displayMax = data.displayMaxHp();
-        String display = String.format(
-                "\u00a7c%.0f\u00a77/\u00a7c%.0f \u00a7c\u2764  \u00a7eLv.%d  \u00a7a+%d XP",
-                displayCurrent, displayMax, data.level, amount);
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                new TextComponent(display));
     }
 
     public void addXp(Player player, int amount) {
