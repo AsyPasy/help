@@ -9,7 +9,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -43,21 +42,6 @@ public class RPGHealthListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         healthManager.onPlayerQuit(event.getPlayer());
-    }
-
-    // Update action bar when player takes damage
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onPlayerDamage(EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-        new BukkitRunnable() {
-            @Override public void run() {
-                if (!player.isOnline()) return;
-                if (player.isDead()) return;
-                RPGHealthManager.PlayerData data =
-                        healthManager.getData(player.getUniqueId());
-                healthManager.updateDisplay(player, data);
-            }
-        }.runTaskLater(plugin, 1L);
     }
 
     // Damage indicator on mob hit
@@ -97,7 +81,7 @@ public class RPGHealthListener implements Listener {
         healthManager.addXp(killer, xpReward);
     }
 
-    // Respawn with 50% HP
+    // Respawn with 50% HP — no display update, vanilla hearts only
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
@@ -114,25 +98,9 @@ public class RPGHealthListener implements Listener {
                 healthManager.applyMaxHp(player, data);
                 double halfHp = Math.max(1.0, data.vanillaMaxHp() * 0.5);
                 player.setHealth(halfHp);
-                healthManager.updateDisplay(player, data);
                 player.sendMessage(
                         "\u00a7eYou respawned with \u00a7c50% \u00a7eHP!");
             }
         }.runTaskTimer(plugin, 5L, 5L);
-    }
-
-    // Keep action bar updated every second
-    @EventHandler
-    public void onPlayerJoinStartActionBar(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        new BukkitRunnable() {
-            @Override public void run() {
-                if (!player.isOnline()) { cancel(); return; }
-                if (player.isDead()) return;
-                RPGHealthManager.PlayerData data =
-                        healthManager.getData(player.getUniqueId());
-                healthManager.updateDisplay(player, data);
-            }
-        }.runTaskTimer(plugin, 20L, 20L);
     }
 }
