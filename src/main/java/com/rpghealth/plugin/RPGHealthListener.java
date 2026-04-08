@@ -45,21 +45,6 @@ public class RPGHealthListener implements Listener {
         healthManager.onPlayerQuit(event.getPlayer());
     }
 
-    // Update action bar when player takes damage
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onPlayerDamage(EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-        new BukkitRunnable() {
-            @Override public void run() {
-                if (!player.isOnline()) return;
-                if (player.isDead()) return;
-                RPGHealthManager.PlayerData data =
-                        healthManager.getData(player.getUniqueId());
-                healthManager.updateDisplay(player, data);
-            }
-        }.runTaskLater(plugin, 1L);
-    }
-
     // Damage indicator on mob hit
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityDamageByPlayer(EntityDamageByEntityEvent event) {
@@ -114,25 +99,8 @@ public class RPGHealthListener implements Listener {
                 healthManager.applyMaxHp(player, data);
                 double halfHp = Math.max(1.0, data.vanillaMaxHp() * 0.5);
                 player.setHealth(halfHp);
-                healthManager.updateDisplay(player, data);
                 player.sendMessage(
                         "\u00a7eYou respawned with \u00a7c50% \u00a7eHP!");
             }
         }.runTaskTimer(plugin, 5L, 5L);
     }
-
-    // Keep action bar updated every second
-    @EventHandler
-    public void onPlayerJoinStartActionBar(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        new BukkitRunnable() {
-            @Override public void run() {
-                if (!player.isOnline()) { cancel(); return; }
-                if (player.isDead()) return;
-                RPGHealthManager.PlayerData data =
-                        healthManager.getData(player.getUniqueId());
-                healthManager.updateDisplay(player, data);
-            }
-        }.runTaskTimer(plugin, 20L, 20L);
-    }
-}
