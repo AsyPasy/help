@@ -79,38 +79,38 @@ public class RPGHealthManager {
     }
 
     // -------------------------------------------------------------------------
-    // Action-bar display — sent via ProtocolLib SYSTEM_CHAT (overlay = true).
+    // Action bar — sent as a SYSTEM_CHAT packet (overlay = true) via
+    // ProtocolLib.  This is the slot directly above the vanilla hearts and
+    // hunger bars at the bottom-centre of the screen.
     //
-    // In 1.19+ the action bar is a SYSTEM_CHAT packet with the overlay flag
-    // set to true. This is the slot that sits directly ABOVE the vanilla hearts
-    // and hunger bars, at the bottom-centre of the screen.
-    //
-    // Using ProtocolLib here gives us raw packet control (no Bungee/Spigot
-    // compatibility quirks) and a clean fallback path.
+    // In 1.19+ the game merged action-bar and chat into SYSTEM_CHAT; the
+    // boolean field 'overlay' (index 1) is what places the text in the
+    // action-bar slot rather than the chat window.
     // -------------------------------------------------------------------------
 
-    /**
-     * Converts a legacy-colour-code string to JSON and sends it as an
-     * action-bar packet via ProtocolLib. Falls back to the Spigot API if
-     * anything goes wrong.
-     */
     private void sendActionBar(Player player, String legacyText) {
         try {
-            // Convert §-codes → JSON component so the packet carries colour correctly
+            // Convert §-colour-codes → JSON so colour survives the packet
             String json = ComponentSerializer.toString(
                     TextComponent.fromLegacyText(legacyText));
 
-            PacketContainer pkt = pm.createPacket(PacketType.Play.Server.SYSTEM_CHAT);
-            pkt.getChatComponents().write(0, WrappedChatComponent.fromJson(json));
-            pkt.getBooleans().write(0, true); // true = overlay / action bar
-            pm.sendServerPacket(player, pkt);
+            PacketContainer pkt =
+                    pm.createPacket(PacketType.Play.Server.SYSTEM_CHAT);
+            pkt.getChatComponents().write(0,
+                    WrappedChatComponent.fromJson(json));
+            pkt.getBooleans().write(0, true); // true = action-bar / overlay
 
+            pm.sendServerPacket(player, pkt);
         } catch (Exception e) {
-            // Fallback — original Spigot action-bar call
+            // Safety net — fall back to the Spigot API if anything goes wrong
             player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
                     new TextComponent(legacyText));
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Display helpers
+    // -------------------------------------------------------------------------
 
     public void updateDisplay(Player player, PlayerData data) {
         if (player.isDead()) return;
@@ -138,13 +138,14 @@ public class RPGHealthManager {
     private void startRegenTask() {
         new BukkitRunnable() {
             @Override public void run() {
-                for (Player player : plugin.getServer().getOnlinePlayers()) {
-                    if (player.isDead()) continue;
-                    PlayerData data     = getData(player.getUniqueId());
-                    double maxVanilla   = data.vanillaMaxHp();
-                    if (player.getHealth() < maxVanilla) {
-                        player.setHealth(Math.min(maxVanilla, player.getHealth() + REGEN_AMOUNT));
-                        updateDisplay(player, data);
+                for (Player p : plugin.getServer().getOnlinePlayers()) {
+                    if (p.isDead()) continue;
+                    PlayerData data  = getData(p.getUniqueId());
+                    double maxVanilla = data.vanillaMaxHp();
+                    if (p.getHealth() < maxVanilla) {
+                        p.setHealth(Math.min(maxVanilla,
+                                p.getHealth() + REGEN_AMOUNT));
+                        updateDisplay(p, data);
                     }
                 }
             }
@@ -170,9 +171,11 @@ public class RPGHealthManager {
     }
 
     public void applyMaxHp(Player player, PlayerData data) {
-        AttributeInstance attr = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        AttributeInstance attr =
+                player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (attr != null) attr.setBaseValue(data.vanillaMaxHp());
-        if (player.getHealth() > data.vanillaMaxHp()) player.setHealth(data.vanillaMaxHp());
+        if (player.getHealth() > data.vanillaMaxHp())
+            player.setHealth(data.vanillaMaxHp());
     }
 
     // -------------------------------------------------------------------------
@@ -189,7 +192,8 @@ public class RPGHealthManager {
             data.level++;
             applyMaxHp(player, data);
             player.setHealth(data.vanillaMaxHp());
-            player.sendMessage("\u00a7a\u00a7l\u2756 LEVEL UP! \u00a7eYou are now level \u00a7f"
+            player.sendMessage(
+                    "\u00a7a\u00a7l\u2756 LEVEL UP! \u00a7eYou are now level \u00a7f"
                     + data.level + "\u00a7e!");
             player.sendMessage("\u00a7eMax HP is now \u00a7f"
                     + String.format("%.0f", data.displayMaxHp()) + "\u00a7e!");
@@ -232,10 +236,11 @@ public class RPGHealthManager {
     // -------------------------------------------------------------------------
 
     private PlayerData loadData(UUID uuid) {
-        File file   = new File(dataFolder, uuid + ".yml");
+        File file = new File(dataFolder, uuid + ".yml");
         PlayerData data = new PlayerData();
         if (file.exists()) {
-            FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+            FileConfiguration cfg =
+                    YamlConfiguration.loadConfiguration(file);
             data.level = cfg.getInt("level", 1);
             data.xp    = cfg.getInt("xp",    0);
         }
@@ -245,8 +250,8 @@ public class RPGHealthManager {
     private void saveData(UUID uuid) {
         PlayerData data = playerData.get(uuid);
         if (data == null) return;
-        File file               = new File(dataFolder, uuid + ".yml");
-        FileConfiguration cfg   = new YamlConfiguration();
+        File file             = new File(dataFolder, uuid + ".yml");
+        FileConfiguration cfg = new YamlConfiguration();
         cfg.set("level", data.level);
         cfg.set("xp",    data.xp);
         try { cfg.save(file); }
