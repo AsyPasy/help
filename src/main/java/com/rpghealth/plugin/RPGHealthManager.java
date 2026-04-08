@@ -112,7 +112,6 @@ public class RPGHealthManager {
 
     public void addXp(Player player, int amount) {
         PlayerData data = getData(player.getUniqueId());
-        showXpGain(player, amount);
         data.xp += amount;
         int xpNeeded = getXpForNextLevel(data.level);
         while (data.xp >= xpNeeded) {
