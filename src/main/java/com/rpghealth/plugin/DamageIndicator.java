@@ -13,30 +13,24 @@ import org.joml.Vector3f;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Spawns a floating damage number above a hit target.
+ * Spawns a floating damage number that:
+ *  - drifts upward over exactly 1 second (20 ticks)
+ *  - fades out in the final 6 ticks
+ *  - is removed from the world at tick 22 (fully invisible by then)
  *
- * Smooth upward drift and fade-out are handled entirely by the client
- * using the TextDisplay entity's built-in interpolation. The server sets
- * the target transformation once (1 tick after spawn) and the client
- * animates the movement itself — no per-tick teleporting.
- *
- * Requires Minecraft 1.20+ (TextDisplay + interpolation API).
- * Does NOT need any ProtocolLib calls — the Spigot Display API sends
- * the right metadata packets automatically.
+ * All motion is client-side interpolation — zero per-tick teleporting.
  */
 public class DamageIndicator {
 
-    // Ticks for the upward drift  (1.5 s)
-    private static final int   RISE_DURATION = 30;
-    // Tick at which opacity fade begins
-    private static final int   FADE_START    = 22;
-    // Ticks the fade-out takes
-    private static final int   FADE_DURATION = 10;
-    // Total entity lifetime in ticks — client is fully faded before this
-    private static final int   LIFETIME      = 36;
-    // How far up the indicator floats (blocks)
-    private static final float RISE_HEIGHT   = 2.2f;
-    // Text scale
+    // Total upward drift duration — matches the 1-second feel the user wants
+    private static final int   RISE_DURATION = 20;
+    // Fade begins at tick 14, giving 6 ticks of fade before removal
+    private static final int   FADE_START    = 14;
+    private static final int   FADE_DURATION = 6;
+    // Remove at tick 22 — client is fully transparent before this
+    private static final int   LIFETIME      = 22;
+    // How far up it floats over those 20 ticks (blocks)
+    private static final float RISE_HEIGHT   = 1.6f;
     private static final float SCALE         = 0.65f;
 
     private final RPGHealthPlugin plugin;
@@ -46,6 +40,7 @@ public class DamageIndicator {
     }
 
     public void spawnIndicator(Location location, double damage) {
+        // Small random horizontal offset so stacked hits don't overlap perfectly
         double ox = (ThreadLocalRandom.current().nextDouble() - 0.5) * 0.8;
         double oz = (ThreadLocalRandom.current().nextDouble() - 0.5) * 0.8;
         Location spawnLoc = location.clone().add(ox, 1.8, oz);
@@ -53,14 +48,13 @@ public class DamageIndicator {
         TextDisplay display = (TextDisplay) spawnLoc.getWorld()
                 .spawnEntity(spawnLoc, EntityType.TEXT_DISPLAY);
 
-        // Base appearance
         display.setText(colorFor(damage) + "\u2694 " + String.format("%.1f", damage));
         display.setBillboard(Display.Billboard.CENTER);
         display.setShadowed(true);
         display.setDefaultBackground(false);
         display.setSeeThrough(false);
 
-        // Set initial scale so it doesn't start huge/tiny
+        // Initial transform — sets the scale before any interpolation starts
         display.setTransformation(new Transformation(
                 new Vector3f(0f, 0f, 0f),
                 new AxisAngle4f(0f, 0f, 0f, 1f),
@@ -68,18 +62,15 @@ public class DamageIndicator {
                 new AxisAngle4f(0f, 0f, 0f, 1f)
         ));
 
-        // --- Burst 1 (tick +1): tell the client to drift upward smoothly ---
-        // We delay 1 tick so the spawn packet has reached the client first.
-        // Setting interpolationDelay=0 and interpolationDuration=RISE_DURATION
-        // makes the client smoothly move the entity to the target translation
-        // over RISE_DURATION ticks — entirely client-side, zero server work.
+        // Tick +1: trigger smooth upward drift on the client over RISE_DURATION ticks.
+        // Delayed 1 tick so the spawn packet reaches the client first.
         new BukkitRunnable() {
             @Override public void run() {
                 if (!display.isValid()) return;
                 display.setInterpolationDelay(0);
                 display.setInterpolationDuration(RISE_DURATION);
                 display.setTransformation(new Transformation(
-                        new Vector3f(0f, RISE_HEIGHT, 0f),   // drift upward
+                        new Vector3f(0f, RISE_HEIGHT, 0f),
                         new AxisAngle4f(0f, 0f, 0f, 1f),
                         new Vector3f(SCALE, SCALE, SCALE),
                         new AxisAngle4f(0f, 0f, 0f, 1f)
@@ -87,9 +78,8 @@ public class DamageIndicator {
             }
         }.runTaskLater(plugin, 1L);
 
-        // --- Burst 2 (tick FADE_START): smooth opacity fade to invisible ---
-        // textOpacity: -1 = fully opaque, 0 = fully transparent.
-        // The interpolation makes this a smooth fade rather than a hard cut.
+        // Tick FADE_START: smooth opacity fade to 0 over FADE_DURATION ticks.
+        // textOpacity 0 = fully transparent (the client interpolates smoothly).
         new BukkitRunnable() {
             @Override public void run() {
                 if (!display.isValid()) return;
@@ -99,15 +89,13 @@ public class DamageIndicator {
             }
         }.runTaskLater(plugin, FADE_START);
 
-        // --- Cleanup: remove the entity after it is fully invisible ---
+        // Tick LIFETIME: entity is invisible by now — safe to remove
         new BukkitRunnable() {
             @Override public void run() {
                 if (display.isValid()) display.remove();
             }
         }.runTaskLater(plugin, LIFETIME);
     }
-
-    // -------------------------------------------------------------------------
 
     private String colorFor(double damage) {
         if (damage >= 15) return ChatColor.DARK_RED + "" + ChatColor.BOLD;
