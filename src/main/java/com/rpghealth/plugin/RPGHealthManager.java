@@ -1,7 +1,5 @@
 package com.rpghealth.plugin;
 
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -81,7 +79,6 @@ public class RPGHealthManager {
                         double newHp = Math.min(maxVanilla,
                                 player.getHealth() + REGEN_AMOUNT);
                         player.setHealth(newHp);
-                        updateDisplay(player, data);
                     }
                 }
             }
@@ -95,7 +92,6 @@ public class RPGHealthManager {
     public void onPlayerJoin(Player player) {
         PlayerData data = getData(player.getUniqueId());
         applyMaxHp(player, data);
-        updateDisplay(player, data);
     }
 
     public void onPlayerQuit(Player player) {
@@ -113,28 +109,6 @@ public class RPGHealthManager {
         }
     }
 
-    public void updateDisplay(Player player, PlayerData data) {
-        if (player.isDead()) return;
-        double displayCurrent = data.toDisplay(player.getHealth());
-        double displayMax = data.displayMaxHp();
-        String display = String.format(
-                "\u00a7c%.0f\u00a77/\u00a7c%.0f \u00a7c\u2764  \u00a7eLv.%d",
-                displayCurrent, displayMax, data.level);
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                new TextComponent(display));
-    }
-
-    public void showXpGain(Player player, int amount) {
-        if (player.isDead()) return;
-        PlayerData data = getData(player.getUniqueId());
-        double displayCurrent = data.toDisplay(player.getHealth());
-        double displayMax = data.displayMaxHp();
-        String display = String.format(
-                "\u00a7c%.0f\u00a77/\u00a7c%.0f \u00a7c\u2764  \u00a7eLv.%d  \u00a7a+%d XP",
-                displayCurrent, displayMax, data.level, amount);
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                new TextComponent(display));
-    }
 
     public void addXp(Player player, int amount) {
         PlayerData data = getData(player.getUniqueId());
@@ -155,8 +129,6 @@ public class RPGHealthManager {
                     org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             xpNeeded = getXpForNextLevel(data.level);
         }
-        updateDisplay(player, data);
-    }
 
     public void setLevel(Player player, int level) {
         PlayerData data = getData(player.getUniqueId());
@@ -164,7 +136,6 @@ public class RPGHealthManager {
         data.xp = 0;
         applyMaxHp(player, data);
         player.setHealth(data.vanillaMaxHp());
-        updateDisplay(player, data);
         player.sendMessage("\u00a7aYour level has been set to \u00a7f"
                 + data.level + " \u00a7awith \u00a7f"
                 + String.format("%.0f", data.displayMaxHp())
@@ -177,7 +148,6 @@ public class RPGHealthManager {
         playerData.put(uuid, data);
         applyMaxHp(player, data);
         player.setHealth(data.vanillaMaxHp());
-        updateDisplay(player, data);
         File file = new File(dataFolder, uuid.toString() + ".yml");
         if (file.exists()) file.delete();
     }
