@@ -104,3 +104,4 @@ public class RPGHealthListener implements Listener {
             }
         }.runTaskTimer(plugin, 5L, 5L);
     }
+}
