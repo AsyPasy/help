@@ -129,7 +129,7 @@ public class RPGHealthManager {
                     org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             xpNeeded = getXpForNextLevel(data.level);
         }
-
+    }
     public void setLevel(Player player, int level) {
         PlayerData data = getData(player.getUniqueId());
         data.level = Math.max(1, level);
